@@ -3,7 +3,7 @@ from google.genai import types
 import base64
 import json
 
-def llm_generater(user_text):
+def llm_generator(user_text):
     # JSONファイルを開いて読み込む
     with open("backend/src/system_prompt.json", "r", encoding="utf-8") as f:
         data = json.load(f)

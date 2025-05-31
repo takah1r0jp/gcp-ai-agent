@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from backend.src.generator import llm_generator
 
 app = FastAPI()
 
@@ -11,4 +12,5 @@ class UserInput(BaseModel):
 @app.post("/generate")
 def generate_output(data: UserInput):
     input_text = data.user_input
-    return {"response": f"あなたはこう言いました：{input_text}"}
+    output = llm_generator(input_text)
+    return {"response": f"LLMはこう言いました：{output}"}
