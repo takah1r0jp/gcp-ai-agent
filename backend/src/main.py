@@ -14,3 +14,5 @@ def generate_output(data: UserInput):
     input_text = data.user_input
     output = llm_generator(input_text)
     return {"response": f"LLMはこう言いました：{output}"}
+
+# 実行コマンド uvicorn backend.src.main:app --reload
