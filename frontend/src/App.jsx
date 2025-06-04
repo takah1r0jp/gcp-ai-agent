@@ -2,58 +2,17 @@ import { useState } from 'react'
 import { ChevronDown, ChevronUp, CheckCircle2, Circle, Target, ListChecks, Flag} from 'lucide-react';
 
 
-const tasks = {
-  todo: ["タスク1", "タスク2", "タスク3"],
-  inProgress: ["タスク4", "タスク5"],
-  done: ["タスク6"],
-};
-
-function TodaysTask() {
-  return (
-    <div>
-      <h2 style={{ textAlign: "center" }}>Todays Task</h2>
-      <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginTop: 20 }}>
-        <TaskColumn title="未完了タスク" tasks={tasks.todo} />
-        <TaskColumn title="進行中タスク" tasks={tasks.inProgress} />
-        <TaskColumn title="完了タスク" tasks={tasks.done} />
-      </div>
-    </div>
-  );
-}
-
-function TaskColumn({ title, tasks }) {
-  return (
-    <div style={{ width: 200, border: "1px solid #ccc", borderRadius: 4, padding: 10 }}>
-      <h3>{title}</h3>
-      <ul>
-        {tasks.map((task, i) => (
-          <li key={i}>{task}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function LoadMap() {
-  return (
-    <div style={{ textAlign: "center", marginTop: 40 }}>
-      <h2>Load Map Page</h2>
-      <p>ここにLoad Mapのコンテンツを追加</p>
-    </div>
-  );
-}
-
-
 function App() {
   const [activeTab, setActiveTab] = useState('roadmap');
 
-  const [page, setPage] = useState("todaysTask");
+  const goal = "Become a Senior Full Stack Developer in 12 months"
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
 
       {/* Header */}
       <header className="bg-white shadow-sm">
+        <h1 className="text-blue-600 font-bold text-6xl text-center mt-5 mb-5">You Can Do it! Agent</h1>
         <div className="max-w-5xl mx-auto px-4">
           <nav className="flex space-x-1">
             <button 
@@ -86,27 +45,42 @@ function App() {
         </div>
       </header>
       
-      
 
-      <p className="text-blue-600 font-bold text-7xl text-center">
-        You Can Do it! Agent
-      </p>
-
-      <div>
-        <nav style={{ display: "flex", justifyContent: "center", gap: 30, padding: 20, borderBottom: "1px solid #ddd" }}>
-          <button onClick={() => setPage("todaysTask")} style={{ fontWeight: page === "todaysTask" ? "bold" : "normal" }}>
-            Todays Task
-          </button>
-          <button onClick={() => setPage("loadMap")} style={{ fontWeight: page === "loadMap" ? "bold" : "normal" }}>
-            Load Map
-          </button>
-        </nav>
-
-        <main>
-          {page === "todaysTask" && <TodaysTask />}
-          {page === "loadMap" && <LoadMap />}
-        </main>
+      {/* Goal Section */}
+      <div className="text-center mb-12 mt-12 mx-auto">
+        <div className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-1 mb-4">
+          <div className="bg-white rounded-md px-4 py-2">
+            <div className="flex items-end justify-center space-x-4 mb-2">
+              <Flag size={24} className="text-blue-600" />
+              <Flag size={30} className="text-blue-600" />
+              <Flag size={36} className="text-blue-600" />
+            </div>
+            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                {goal}
+            </h1>
+          </div>
+        </div>
+        <p className="text-gray-600">Your journey starts from the bottom</p>     
       </div>
+      
+      {/* Next Task 
+      - ロードマップのコンポーネント設計
+        - ステップ
+          - タスク
+            - タスクの進行状況
+      */}
+
+      {/* Road Map */}
+      <div className="relative">
+        {/* Vertical Line */}
+        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-600 to-blue-200 md:left-1/2" />
+        <p><br></br><br></br><br></br></p>
+
+        {/* Steps  */}
+        <div className=""></div>
+
+      </div>
+
 
     </div>
   )
