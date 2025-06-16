@@ -1,89 +1,131 @@
-import { useState } from 'react'
-import { ChevronDown, ChevronUp, CheckCircle2, Circle, Target, ListChecks, Flag} from 'lucide-react';
-
+import { useState, useEffect } from 'react';
+import GoalInput from './components/GoalInput';
+import GoalPlan from './components/GoalPlan';
+import LoadingPlan from './components/LoadingPlan';
+import { createGoalPlan, checkApiHealth } from './services/api';
+import { AlertCircle, Wifi, WifiOff } from 'lucide-react';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('roadmap');
+  const [currentView, setCurrentView] = useState('input'); // 'input' | 'loading' | 'plan'
+  const [planData, setPlanData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [isApiConnected, setIsApiConnected] = useState(null);
+  const [currentGoal, setCurrentGoal] = useState('');
 
-  const goal = "Become a Senior Full Stack Developer in 12 months"
+  // API接続状況をチェック
+  useEffect(() => {
+    const checkConnection = async () => {
+      const isConnected = await checkApiHealth();
+      setIsApiConnected(isConnected);
+    };
+    
+    checkConnection();
+    // 30秒ごとに接続状況をチェック
+    const interval = setInterval(checkConnection, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleGoalSubmit = async (goalData) => {
+    setIsLoading(true);
+    setError(null);
+    setCurrentGoal(goalData.goal);
+    setCurrentView('loading');
+
+    try {
+      console.log('目標送信:', goalData);
+      const result = await createGoalPlan(goalData.goal);
+      console.log('プラン生成成功:', result);
+      
+      setPlanData(result);
+      setCurrentView('plan');
+    } catch (err) {
+      console.error('プラン生成エラー:', err);
+      setError(err.message || 'プランの生成中にエラーが発生しました');
+      setCurrentView('input');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackToInput = () => {
+    setCurrentView('input');
+    setError(null);
+  };
+
+  const handleEditGoal = () => {
+    setCurrentView('input');
+    setError(null);
+    setPlanData(null);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <h1 className="text-blue-600 font-bold text-6xl text-center mt-5 mb-5">You Can Do it! Agent</h1>
-        <div className="max-w-5xl mx-auto px-4">
-          <nav className="flex space-x-1">
-            <button 
-              onClick={() => setActiveTab('tasks')}
-              className={`px-4 py-3 text-sm font-medium ${
-                activeTab === 'tasks'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <ListChecks size={18} />
-                <span>Today's Tasks</span>
-              </div>
-            </button> 
-            <button
-              onClick={() => setActiveTab('roadmap')}
-              className={`px-4 py-3 text-sm font-medium ${
-                activeTab === 'roadmap'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <Flag size={18} />
-                <span>Roadmap</span>
-              </div>
-            </button>
-          </nav>
+    <div className="min-h-screen">
+      {/* API接続状況表示 */}
+      {isApiConnected !== null && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2 ${
+          isApiConnected 
+            ? 'bg-green-100 text-green-800 border border-green-200' 
+            : 'bg-red-100 text-red-800 border border-red-200'
+        }`}>
+          {isApiConnected ? (
+            <>
+              <Wifi size={16} />
+              <span>API接続中</span>
+            </>
+          ) : (
+            <>
+              <WifiOff size={16} />
+              <span>API未接続</span>
+            </>
+          )}
         </div>
-      </header>
-      
+      )}
 
-      {/* Goal Section */}
-      <div className="text-center mb-12 mt-12 mx-auto">
-        <div className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-1 mb-4">
-          <div className="bg-white rounded-md px-4 py-2">
-            <div className="flex items-end justify-center space-x-4 mb-2">
-              <Flag size={24} className="text-blue-600" />
-              <Flag size={30} className="text-blue-600" />
-              <Flag size={36} className="text-blue-600" />
+      {/* エラー表示 */}
+      {error && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full mx-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg">
+            <div className="flex items-start space-x-3">
+              <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-red-800 mb-1">
+                  エラーが発生しました
+                </h3>
+                <p className="text-sm text-red-700">{error}</p>
+                <button
+                  onClick={() => setError(null)}
+                  className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+                >
+                  閉じる
+                </button>
+              </div>
             </div>
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                {goal}
-            </h1>
           </div>
         </div>
-        <p className="text-gray-600">Your journey starts from the bottom</p>     
-      </div>
+      )}
+
+      {/* メインコンテンツ */}
+      {currentView === 'input' && (
+        <GoalInput 
+          onGoalSubmit={handleGoalSubmit}
+          isLoading={isLoading}
+        />
+      )}
       
-      {/* Next Task 
-      - ロードマップのコンポーネント設計
-        - ステップ
-          - タスク
-            - タスクの進行状況
-      */}
-
-      {/* Road Map */}
-      <div className="relative">
-        {/* Vertical Line */}
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-600 to-blue-200 md:left-1/2" />
-        <p><br></br><br></br><br></br></p>
-
-        {/* Steps  */}
-        <div className=""></div>
-
-      </div>
-
-
+      {currentView === 'loading' && (
+        <LoadingPlan goal={currentGoal} />
+      )}
+      
+      {currentView === 'plan' && (
+        <GoalPlan 
+          planData={planData}
+          onBack={handleBackToInput}
+          onEditGoal={handleEditGoal}
+        />
+      )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
