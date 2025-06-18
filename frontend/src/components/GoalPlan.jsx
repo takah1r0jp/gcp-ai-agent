@@ -22,9 +22,8 @@ import {
   CheckCircle
 } from 'lucide-react';
 
-function GoalPlan({ planData, onBack, onEditGoal }) {
-  const [expandedMidGoals, setExpandedMidGoals] = useState(new Set([1]));
-  const [completedTasks, setCompletedTasks] = useState(new Set());
+function GoalPlan({ planData, onBack, onEditGoal, onShowTodayTasks, completedTasks, onToggleTask }) {
+  const [expandedMidGoals, setExpandedMidGoals] = useState(new Set([1, 2, 3])); // デフォルトで最初の3つを展開
   const [animatedCards, setAnimatedCards] = useState(new Set());
   const [showCelebration, setShowCelebration] = useState(false);
 
@@ -53,7 +52,7 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
           totalTasks += smallGoal.tasks.length;
           smallGoal.tasks.forEach((_, taskIndex) => {
             const taskId = `${midGoal.id}-${smallGoal.id}-${taskIndex}`;
-            if (completedTasks.has(taskId)) {
+            if (completedTasks?.has(taskId)) {
               completedTasksCount++;
             }
           });
@@ -81,18 +80,16 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
   };
 
   const toggleTask = (taskId) => {
-    const newCompleted = new Set(completedTasks);
-    if (newCompleted.has(taskId)) {
-      newCompleted.delete(taskId);
-    } else {
-      newCompleted.add(taskId);
+    if (onToggleTask) {
+      onToggleTask(taskId);
       // 完了時のお祝いアニメーション
-      if (Math.random() > 0.7) { // 30%の確率でお祝い
-        setShowCelebration(true);
-        setTimeout(() => setShowCelebration(false), 3000);
+      if (!completedTasks?.has(taskId)) {
+        if (Math.random() > 0.7) { // 30%の確率でお祝い
+          setShowCelebration(true);
+          setTimeout(() => setShowCelebration(false), 3000);
+        }
       }
     }
-    setCompletedTasks(newCompleted);
   };
 
   if (!planData || !planData.mid_goals) {
@@ -157,28 +154,40 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
               <p className="text-purple-200/80 mt-2">あなたの成功への道筋</p>
             </div>
 
-            <button
-              onClick={onEditGoal}
-              className="group px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-medium hover:from-purple-500 hover:to-pink-500 transition-all duration-300 hover:scale-105 hover:shadow-2xl"
-            >
-              <div className="flex items-center space-x-2">
-                <Sparkles size={18} />
-                <span>目標を編集</span>
-              </div>
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={onShowTodayTasks}
+                className="group px-6 py-3 bg-gradient-to-r from-orange-600 to-yellow-600 text-white rounded-xl font-medium hover:from-orange-500 hover:to-yellow-500 transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+              >
+                <div className="flex items-center space-x-2">
+                  <Calendar size={18} />
+                  <span>今日のタスク</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={onEditGoal}
+                className="group px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-medium hover:from-purple-500 hover:to-pink-500 transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+              >
+                <div className="flex items-center space-x-2">
+                  <Sparkles size={18} />
+                  <span>目標を編集</span>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="relative z-10 container mx-auto px-6 py-12">
         {/* Hero Goal Section */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <div className="relative inline-block group">
             {/* Glow effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl blur-xl opacity-50 group-hover:opacity-70 transition-opacity duration-500" />
             
-            <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-10 shadow-2xl">
-              <div className="flex items-center justify-center space-x-6 mb-8">
+            <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 shadow-2xl">
+              <div className="flex items-center justify-center space-x-6 mb-6">
                 <Trophy size={32} className="text-yellow-400" />
                 <Flag size={40} className="text-purple-300" />
                 <Target size={48} className="text-pink-400" />
@@ -186,7 +195,7 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
                 <Award size={32} className="text-yellow-400" />
               </div>
               
-              <h2 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-pink-200 mb-6 leading-tight">
+              <h2 className="text-2xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-pink-200 mb-4 leading-tight">
                 {planData.goal}
               </h2>
               
@@ -206,7 +215,7 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
               </div>
 
               {/* Progress Bar */}
-              <div className="mt-8">
+              <div className="mt-6">
                 <div className="flex justify-between text-sm text-white/70 mb-2">
                   <span>全体進捗</span>
                   <span>{progress.completed}/{progress.total} タスク完了</span>
@@ -236,7 +245,7 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
             {planData.mid_goals.map((midGoal, index) => (
               <div 
                 key={midGoal.id} 
-                className={`relative mb-16 last:mb-0 transform transition-all duration-700 ${
+                className={`relative mb-12 last:mb-0 transform transition-all duration-700 ${
                   animatedCards.has(midGoal.id) 
                     ? 'translate-x-0 opacity-100' 
                     : 'translate-x-8 opacity-0'
@@ -259,7 +268,7 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
                     {/* Card glow effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     
-                    <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 shadow-2xl hover:shadow-purple-500/25 transition-all duration-500 hover:scale-[1.02] hover:border-white/30">
+                    <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-6 shadow-2xl hover:shadow-purple-500/25 transition-all duration-500 hover:scale-[1.02] hover:border-white/30">
                       <button
                         onClick={() => toggleMidGoal(midGoal.id)}
                         className="w-full text-left"
@@ -285,11 +294,11 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
                               </div>
                             </div>
                             
-                            <h3 className="text-2xl md:text-3xl font-bold text-white mb-4 leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-200 group-hover:to-pink-200 transition-all duration-300">
+                            <h3 className="text-xl md:text-2xl font-bold text-white mb-3 leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-200 group-hover:to-pink-200 transition-all duration-300">
                               {midGoal.title}
                             </h3>
                             
-                            <p className="text-white/80 leading-relaxed text-lg">
+                            <p className="text-white/80 leading-relaxed">
                               {midGoal.description}
                             </p>
                           </div>
@@ -308,7 +317,7 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
 
                       {/* Small Goals - Expandable Content */}
                       {expandedMidGoals.has(midGoal.id) && (
-                        <div className="mt-8 space-y-6 border-t border-white/10 pt-8">
+                        <div className="mt-6 space-y-4 border-t border-white/10 pt-6">
                           {midGoal.small_goals.map((smallGoal, sgIndex) => (
                             <div 
                               key={smallGoal.id} 
@@ -323,14 +332,14 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
                                 {/* Small goal glow */}
                                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl blur-lg opacity-0 group-hover/small:opacity-100 transition-opacity duration-300" />
                                 
-                                <div className="relative backdrop-blur-sm bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-white/20 transition-all duration-300">
-                                  <div className="flex items-start space-x-4 mb-6">
+                                <div className="relative backdrop-blur-sm bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 hover:border-white/20 transition-all duration-300">
+                                  <div className="flex items-start space-x-4 mb-4">
                                     <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
                                       <span className="text-white font-bold">{smallGoal.id}</span>
                                     </div>
                                     
                                     <div className="flex-1">
-                                      <h4 className="text-xl font-bold text-white mb-3 group-hover/small:text-transparent group-hover/small:bg-clip-text group-hover/small:bg-gradient-to-r group-hover/small:from-blue-200 group-hover/small:to-purple-200 transition-all duration-300">
+                                      <h4 className="text-lg font-bold text-white mb-2 group-hover/small:text-transparent group-hover/small:bg-clip-text group-hover/small:bg-gradient-to-r group-hover/small:from-blue-200 group-hover/small:to-purple-200 transition-all duration-300">
                                         {smallGoal.title}
                                       </h4>
                                       <p className="text-white/70 leading-relaxed">
@@ -341,19 +350,19 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
 
                                   {/* Tasks */}
                                   {smallGoal.tasks && smallGoal.tasks.length > 0 && (
-                                    <div className="space-y-4">
-                                      <h5 className="text-lg font-bold text-white flex items-center space-x-3">
-                                        <div className="w-6 h-6 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
-                                          <Lightbulb size={14} className="text-white" />
+                                    <div className="space-y-3">
+                                      <h5 className="text-base font-bold text-white flex items-center space-x-3">
+                                        <div className="w-5 h-5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
+                                          <Lightbulb size={12} className="text-white" />
                                         </div>
                                         <span>実行タスク</span>
                                         <div className="flex-1 h-px bg-gradient-to-r from-white/20 to-transparent" />
                                       </h5>
                                       
-                                      <div className="grid gap-3">
+                                      <div className="grid gap-2">
                                         {smallGoal.tasks.map((task, taskIndex) => {
                                           const taskId = `${midGoal.id}-${smallGoal.id}-${taskIndex}`;
-                                          const isCompleted = completedTasks.has(taskId);
+                                          const isCompleted = completedTasks?.has(taskId);
                                           
                                           return (
                                             <div 
@@ -367,7 +376,7 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
                                                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl blur-sm" />
                                               )}
                                               
-                                              <div className={`relative flex items-start space-x-4 p-4 rounded-xl border transition-all duration-300 ${
+                                              <div className={`relative flex items-start space-x-3 p-3 rounded-xl border transition-all duration-300 ${
                                                 isCompleted 
                                                   ? 'bg-emerald-500/10 border-emerald-500/30 shadow-emerald-500/20' 
                                                   : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-lg'
@@ -387,7 +396,7 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
                                                 </button>
                                                 
                                                 <div className="flex-1 min-w-0">
-                                                  <p className={`leading-relaxed transition-all duration-300 ${
+                                                  <p className={`text-sm leading-relaxed transition-all duration-300 ${
                                                     isCompleted 
                                                       ? 'text-white/60 line-through' 
                                                       : 'text-white/90 font-medium group-hover/task:text-white'
@@ -396,18 +405,9 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
                                                   </p>
                                                   
                                                   {isCompleted && (
-                                                    <div className="flex items-center space-x-2 mt-2 text-emerald-400 text-sm">
-                                                      <CheckCircle size={16} />
+                                                    <div className="flex items-center space-x-2 mt-1 text-emerald-400 text-xs">
+                                                      <CheckCircle size={14} />
                                                       <span className="font-medium">完了</span>
-                                                      <div className="flex space-x-1">
-                                                        {[...Array(3)].map((_, i) => (
-                                                          <div 
-                                                            key={i} 
-                                                            className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce"
-                                                            style={{ animationDelay: `${i * 200}ms` }}
-                                                          />
-                                                        ))}
-                                                      </div>
                                                     </div>
                                                   )}
                                                 </div>
@@ -427,22 +427,22 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
 
                                   {/* Success Criteria */}
                                   {smallGoal.success_criteria && (
-                                    <div className="mt-6">
+                                    <div className="mt-4">
                                       <div className="relative group/criteria">
                                         <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-xl blur-sm opacity-0 group-hover/criteria:opacity-100 transition-opacity duration-300" />
                                         
-                                        <div className="relative p-5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl">
-                                          <div className="flex items-start space-x-4">
-                                            <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
-                                              <Target size={20} className="text-white" />
+                                        <div className="relative p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl">
+                                          <div className="flex items-start space-x-3">
+                                            <div className="w-8 h-8 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
+                                              <Target size={16} className="text-white" />
                                             </div>
                                             
                                             <div className="flex-1">
                                               <div className="flex items-center space-x-2 mb-2">
                                                 <span className="text-xs font-black text-amber-300 uppercase tracking-wider">達成基準</span>
-                                                <TrendingUp size={14} className="text-amber-400" />
+                                                <TrendingUp size={12} className="text-amber-400" />
                                               </div>
-                                              <p className="text-amber-100 leading-relaxed font-medium">
+                                              <p className="text-amber-100 leading-relaxed text-sm">
                                                 {smallGoal.success_criteria}
                                               </p>
                                             </div>
@@ -467,11 +467,11 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
 
         {/* Success Tips Section */}
         {planData.tips && planData.tips.length > 0 && (
-          <div className="max-w-6xl mx-auto mt-20">
+          <div className="max-w-6xl mx-auto mt-16">
             <div className="relative group">
               <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-70 transition-opacity duration-500" />
               
-              <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-10 shadow-2xl">
+              <div className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 shadow-2xl">
                 <div className="text-center mb-8">
                   <div className="inline-flex items-center space-x-3 mb-4">
                     <User size={32} className="text-emerald-400" />
@@ -483,7 +483,7 @@ function GoalPlan({ planData, onBack, onEditGoal }) {
                   <p className="text-white/70">専門家からの特別なアドバイス</p>
                 </div>
                 
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {planData.tips.map((tip, index) => (
                     <div 
                       key={index} 

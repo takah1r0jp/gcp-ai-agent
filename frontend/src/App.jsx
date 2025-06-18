@@ -2,16 +2,45 @@ import { useState, useEffect } from 'react';
 import GoalInput from './components/GoalInput';
 import GoalPlan from './components/GoalPlan';
 import LoadingPlan from './components/LoadingPlan';
+import TodayTasks from './components/TodayTasks';
 import { createGoalPlan, checkApiHealth } from './services/api';
+import { 
+  saveCompletedTasks, 
+  loadCompletedTasks, 
+  savePlanData, 
+  loadPlanData,
+  saveGoalToHistory
+} from './services/storage';
 import { AlertCircle, Wifi, WifiOff } from 'lucide-react';
 
 function App() {
-  const [currentView, setCurrentView] = useState('input'); // 'input' | 'loading' | 'plan'
+  const [currentView, setCurrentView] = useState('input'); // 'input' | 'loading' | 'plan' | 'today'
   const [planData, setPlanData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isApiConnected, setIsApiConnected] = useState(null);
   const [currentGoal, setCurrentGoal] = useState('');
+  const [completedTasks, setCompletedTasks] = useState(new Set());
+
+  // 初期データ読み込み
+  useEffect(() => {
+    const savedCompletedTasks = loadCompletedTasks();
+    const savedPlanData = loadPlanData();
+    
+    setCompletedTasks(savedCompletedTasks);
+    
+    if (savedPlanData) {
+      setPlanData(savedPlanData);
+      setCurrentView('plan');
+    }
+  }, []);
+
+  // 完了タスクの変更を監視して自動保存
+  useEffect(() => {
+    if (completedTasks.size > 0) {
+      saveCompletedTasks(completedTasks);
+    }
+  }, [completedTasks]);
 
   // API接続状況をチェック
   useEffect(() => {
@@ -39,6 +68,10 @@ function App() {
       
       setPlanData(result);
       setCurrentView('plan');
+      
+      // データを保存
+      savePlanData(result);
+      saveGoalToHistory(goalData.goal, result);
     } catch (err) {
       console.error('プラン生成エラー:', err);
       setError(err.message || 'プランの生成中にエラーが発生しました');
@@ -57,6 +90,24 @@ function App() {
     setCurrentView('input');
     setError(null);
     setPlanData(null);
+  };
+
+  const handleShowTodayTasks = () => {
+    setCurrentView('today');
+  };
+
+  const handleBackToPlan = () => {
+    setCurrentView('plan');
+  };
+
+  const handleToggleTask = (taskId) => {
+    const newCompleted = new Set(completedTasks);
+    if (newCompleted.has(taskId)) {
+      newCompleted.delete(taskId);
+    } else {
+      newCompleted.add(taskId);
+    }
+    setCompletedTasks(newCompleted);
   };
 
   return (
@@ -122,6 +173,18 @@ function App() {
           planData={planData}
           onBack={handleBackToInput}
           onEditGoal={handleEditGoal}
+          onShowTodayTasks={handleShowTodayTasks}
+          completedTasks={completedTasks}
+          onToggleTask={handleToggleTask}
+        />
+      )}
+      
+      {currentView === 'today' && (
+        <TodayTasks 
+          planData={planData}
+          onBack={handleBackToPlan}
+          completedTasks={completedTasks}
+          onToggleTask={handleToggleTask}
         />
       )}
     </div>
