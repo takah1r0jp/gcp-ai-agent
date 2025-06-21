@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import GoalInput from './components/GoalInput';
 import GoalPlan from './components/GoalPlan';
 import LoadingPlan from './components/LoadingPlan';
 import TodayTasks from './components/TodayTasks';
+import Login from './components/Login';
+import Signup from './components/Signup';
+import Header from './components/Header';
+import AppHeader from './components/AppHeader';
+import Profile from './components/Profile';
+import GoalHistory from './components/GoalHistory';
+import ProtectedRoute from './components/ProtectedRoute';
+import DebugPanel from './components/DebugPanel';
 import { createGoalPlan, checkApiHealth } from './services/api';
 import { 
   saveCompletedTasks, 
@@ -11,36 +21,101 @@ import {
   loadPlanData,
   saveGoalToHistory
 } from './services/storage';
+import { 
+  saveGoal, 
+  savePlan, 
+  saveTaskProgress, 
+  getCurrentGoal, 
+  setActiveGoal 
+} from './services/firestore';
 import { AlertCircle, Wifi, WifiOff } from 'lucide-react';
 
-function App() {
-  const [currentView, setCurrentView] = useState('input'); // 'input' | 'loading' | 'plan' | 'today'
+function MainApp() {
+  const { user } = useAuth();
+  const [currentView, setCurrentView] = useState('input'); // 'input' | 'loading' | 'plan' | 'today' | 'history'
   const [planData, setPlanData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isApiConnected, setIsApiConnected] = useState(null);
   const [currentGoal, setCurrentGoal] = useState('');
   const [completedTasks, setCompletedTasks] = useState(new Set());
+  const [currentGoalId, setCurrentGoalId] = useState(null);
 
-  // 初期データ読み込み
+  // 初期データ読み込み（ユーザーがログインしている場合はFirestoreから、そうでなければローカルストレージから）
   useEffect(() => {
-    const savedCompletedTasks = loadCompletedTasks();
-    const savedPlanData = loadPlanData();
-    
-    setCompletedTasks(savedCompletedTasks);
-    
-    if (savedPlanData) {
-      setPlanData(savedPlanData);
-      setCurrentView('plan');
-    }
-  }, []);
+    const loadUserData = async () => {
+      if (user) {
+        try {
+          // Firestoreからユーザーの現在の目標を取得
+          const currentGoalData = await getCurrentGoal(user.uid);
+          console.log('🔍 Firebaseから取得したデータ:', currentGoalData);
+          
+          if (currentGoalData) {
+            setCurrentGoalId(currentGoalData.id);
+            setCurrentGoal(currentGoalData.goal);
+            console.log('🔍 目標ID設定:', currentGoalData.id);
+            console.log('🔍 目標テキスト設定:', currentGoalData.goal);
+            
+            if (currentGoalData.plan) {
+              setPlanData(currentGoalData.plan);
+              console.log('🔍 プランデータ設定:', currentGoalData.plan);
+              // 目標が設定されている場合は今日のタスク画面を表示
+              setCurrentView('today');
+            }
+            if (currentGoalData.completedTasks) {
+              setCompletedTasks(new Set(currentGoalData.completedTasks));
+              console.log('🔍 完了タスク設定:', currentGoalData.completedTasks);
+            }
+          } else {
+            console.log('🔍 Firebaseにアクティブな目標が見つかりません');
+          }
+        } catch (error) {
+          console.error('ユーザーデータの読み込みエラー:', error);
+          // エラーの場合はローカルストレージにフォールバック
+          loadLocalData();
+        }
+      } else {
+        loadLocalData();
+      }
+    };
+
+    const loadLocalData = () => {
+      const savedCompletedTasks = loadCompletedTasks();
+      const savedPlanData = loadPlanData();
+      
+      setCompletedTasks(savedCompletedTasks);
+      
+      if (savedPlanData) {
+        setPlanData(savedPlanData);
+        setCurrentView('plan');
+      }
+    };
+
+    loadUserData();
+  }, [user]);
 
   // 完了タスクの変更を監視して自動保存
   useEffect(() => {
-    if (completedTasks.size > 0) {
-      saveCompletedTasks(completedTasks);
-    }
-  }, [completedTasks]);
+    const saveTaskData = async () => {
+      if (completedTasks.size > 0) {
+        if (user && currentGoalId) {
+          try {
+            // Firestoreに保存
+            await saveTaskProgress(user.uid, currentGoalId, completedTasks);
+          } catch (error) {
+            console.error('タスク進捗の保存エラー:', error);
+            // エラーの場合はローカルストレージにフォールバック
+            saveCompletedTasks(completedTasks);
+          }
+        } else {
+          // ローカルストレージに保存
+          saveCompletedTasks(completedTasks);
+        }
+      }
+    };
+
+    saveTaskData();
+  }, [completedTasks, user, currentGoalId]);
 
   // API接続状況をチェック
   useEffect(() => {
@@ -70,8 +145,31 @@ function App() {
       setCurrentView('plan');
       
       // データを保存
-      savePlanData(result);
-      saveGoalToHistory(goalData.goal, result);
+      if (user) {
+        try {
+          // Firestoreに保存
+          const goalId = await saveGoal(user.uid, {
+            goal: goalData.goal,
+            plan: result,
+            isActive: true,
+            hasGeneratedPlan: true,
+            completedTasks: []
+          });
+          setCurrentGoalId(goalId);
+          
+          // 他の目標を非アクティブにして、この目標をアクティブに設定
+          await setActiveGoal(user.uid, goalId);
+        } catch (error) {
+          console.error('Firestore保存エラー:', error);
+          // エラーの場合はローカルストレージにフォールバック
+          savePlanData(result);
+          saveGoalToHistory(goalData.goal, result);
+        }
+      } else {
+        // ローカルストレージに保存
+        savePlanData(result);
+        saveGoalToHistory(goalData.goal, result);
+      }
     } catch (err) {
       console.error('プラン生成エラー:', err);
       setError(err.message || 'プランの生成中にエラーが発生しました');
@@ -90,6 +188,8 @@ function App() {
     setCurrentView('input');
     setError(null);
     setPlanData(null);
+    setCurrentGoalId(null);
+    setCompletedTasks(new Set());
   };
 
   const handleShowTodayTasks = () => {
@@ -98,6 +198,49 @@ function App() {
 
   const handleBackToPlan = () => {
     setCurrentView('plan');
+  };
+
+  const handleViewChange = (view) => {
+    // 新しい目標設定の場合のみデータをクリア
+    if (view === 'input') {
+      // 既存の目標がある場合は確認ダイアログを表示
+      const currentHasGoal = (planData !== null) || (currentGoalId !== null);
+      if (currentHasGoal) {
+        const confirmed = window.confirm('新しい目標を設定しますか？現在の目標が置き換えられます。');
+        if (!confirmed) {
+          return; // キャンセルされた場合は何もしない
+        }
+        // 確認された場合は目標データをクリア
+        setPlanData(null);
+        setCurrentGoalId(null);
+        setCurrentGoal('');
+        setCompletedTasks(new Set());
+      }
+    }
+    
+    setCurrentView(view);
+    setError(null);
+  };
+
+  const handleGoalSelect = (selectedGoal) => {
+    // 選択された目標をアクティブに設定
+    setCurrentGoalId(selectedGoal.id);
+    setCurrentGoal(selectedGoal.goal);
+    setPlanData(selectedGoal.plan);
+    setCompletedTasks(new Set(selectedGoal.completedTasks));
+    
+    // 今日のタスク画面に移動
+    setCurrentView('today');
+    setError(null);
+  };
+
+  const handleBackFromHistory = () => {
+    // 目標履歴から戻る
+    if (planData) {
+      setCurrentView('today');
+    } else {
+      setCurrentView('input');
+    }
   };
 
   const handleToggleTask = (taskId) => {
@@ -110,8 +253,26 @@ function App() {
     setCompletedTasks(newCompleted);
   };
 
+  // Firebaseデータに基づく目標存在判定
+  const hasGoal = (planData !== null) || (currentGoalId !== null);
+  
+  // デバッグ情報
+  console.log('🔍 hasGoal判定:', {
+    planData: planData ? 'あり' : 'なし',
+    currentGoalId: currentGoalId ? 'あり' : 'なし',
+    currentGoal: currentGoal || 'なし',
+    hasGoal
+  });
+
   return (
     <div className="min-h-screen">
+      <AppHeader 
+        currentView={currentView}
+        onViewChange={handleViewChange}
+        hasGoal={hasGoal}
+        currentGoal={currentGoal}
+      />
+      
       {/* API接続状況表示 */}
       {isApiConnected !== null && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2 ${
@@ -187,7 +348,42 @@ function App() {
           onToggleTask={handleToggleTask}
         />
       )}
+
+      {currentView === 'history' && (
+        <GoalHistory 
+          onGoalSelect={handleGoalSelect}
+          onBack={handleBackFromHistory}
+          currentGoalId={currentGoalId}
+        />
+      )}
+      
+      {/* デバッグパネル */}
+      <DebugPanel />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <MainApp />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
   );
 }
 

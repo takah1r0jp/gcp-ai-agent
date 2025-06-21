@@ -1,20 +1,71 @@
 from google import genai
 from google.genai import types
 import json
+import os
+from dotenv import load_dotenv
 
+# .envファイルを読み込み（バックエンドディレクトリから）
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_root = os.path.dirname(os.path.dirname(current_dir))
+env_path = os.path.join(backend_root, '.env')
+load_dotenv(env_path)
+print(f"🔍 .env読み込みパス: {env_path}")
+print(f"🔍 .envファイル存在確認: {os.path.exists(env_path)}")
 
 def llm_generator(user_goal: str) -> dict:
     # JSONファイルを開いて読み込む
-    with open("backend/config/system_prompt.json", "r", encoding="utf-8") as f:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    backend_root = os.path.dirname(os.path.dirname(current_dir))
+    project_root = os.path.dirname(backend_root)
+    system_prompt_path = os.path.join(project_root, "backend/config/system_prompt.json")
+    
+    with open(system_prompt_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     
     # "system_prompt"の値を取り出す
     system_prompt = data["system_prompt"] 
     
+    # 環境変数の確認
+    print("🔍 全環境変数確認:")
+    for key in ['GOOGLE_APPLICATION_CREDENTIALS', 'GOOGLE_CLOUD_PROJECT', 'FIREBASE_SERVICE_ACCOUNT_KEY']:
+        value = os.getenv(key, 'NOT_SET')
+        print(f"  {key}: {value}")
+    
+    # Vertex AI用の認証情報を強制的に設定
+    project_id = os.getenv('GOOGLE_CLOUD_PROJECT', 'gcp-ai-461501')
+    
+    # 古い値が残っている場合は強制的に正しい値を設定
+    vertex_ai_credentials = 'backend/config/vertex-ai-key.json'
+    
+    print(f"🔍 Vertex AI Project: {project_id}")
+    print(f"🔍 Vertex AI Credentials (強制設定): {vertex_ai_credentials}")
+    
+    # 絶対パスに変換
+    if vertex_ai_credentials and not os.path.isabs(vertex_ai_credentials):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        backend_root = os.path.dirname(os.path.dirname(current_dir))
+        project_root = os.path.dirname(backend_root)
+        vertex_ai_credentials = os.path.join(project_root, vertex_ai_credentials)
+        
+        # 環境変数を強制的に更新
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = vertex_ai_credentials
+        print(f"🔍 Vertex AI絶対パス: {vertex_ai_credentials}")
+        print(f"🔍 ファイル存在確認: {os.path.exists(vertex_ai_credentials)}")
+        
+        if not os.path.exists(vertex_ai_credentials):
+            print(f"❌ ファイルが見つかりません: {vertex_ai_credentials}")
+            print(f"📁 config ディレクトリの内容:")
+            config_dir = os.path.dirname(vertex_ai_credentials)
+            if os.path.exists(config_dir):
+                for file in os.listdir(config_dir):
+                    print(f"  - {file}")
+            else:
+                print(f"❌ config ディレクトリが存在しません: {config_dir}")
+    
     client = genai.Client(
         vertexai=True,
-        project="gcp-ai-461501",
-        location="global",
+        project=project_id,
+        location="us-central1",  # 一般的に利用可能なリージョン
     )
 
     # ユーザーの目標を適切な形式でプロンプトに組み込む
